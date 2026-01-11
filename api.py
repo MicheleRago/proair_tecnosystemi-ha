@@ -96,7 +96,7 @@ class ProAirAPI:
                     self.token = data["Token"]
                 return data
 
-    async def set_temperature(self, zone_id, zone_name, temp):
+    async def set_temperature(self, zone_id, zone_name, temp, is_off=False):
         async with self._lock:
             # Incrementiamo il token locale prima della POST
             current_token = self._update_token_local()
@@ -109,8 +109,26 @@ class ProAirAPI:
                 "Content-Type": "application/json"
             }
             
-            cmd = {"shu_set": 2, "is_off": 0, "c": "upd_zona", "t_set": int(temp * 10), "id_zona": zone_id, "is_crono": 0, "fan_set": -1, "name": zone_name, "pin": "2226"}
-            payload = {"Serial": self.serial, "ZoneId": zone_id, "Cmd": json.dumps(cmd, separators=(',', ':')), "Pin": "2226", "Name": zone_name, "Icon": 0}
+            # Usiamo il parametro is_off: 1 per spegnere, 0 per accendere
+            cmd = {
+                "shu_set": 2, 
+                "is_off": 1 if is_off else 0, 
+                "c": "upd_zona", 
+                "t_set": int(temp * 10), 
+                "id_zona": zone_id, 
+                "is_crono": 0, 
+                "fan_set": -1, 
+                "name": zone_name, 
+                "pin": "2226"
+            }
+            payload = {
+                "Serial": self.serial, 
+                "ZoneId": zone_id, 
+                "Cmd": json.dumps(cmd, separators=(',', ':')), 
+                "Pin": "2226", 
+                "Name": zone_name, 
+                "Icon": 0
+            }
             
             async with self.session.post("https://proair.azurewebsites.net/api/v1/UpdateZonaData?create_command=true", json=payload, headers=headers) as resp:
                 if resp.status == 200:

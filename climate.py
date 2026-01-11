@@ -72,6 +72,20 @@ class ProAirZone(ClimateEntity):
         if await self._api.set_temperature(self._id, self._name, temp):
             self._state_data["SetTemp"] = temp * 10
             self.async_write_ha_state()
+    
+    async def async_set_hvac_mode(self, hvac_mode):
+        """Accende o spegne la zona."""
+        _LOGGER.debug("Impostazione modalità HVAC per %s: %s", self._name, hvac_mode)
+        
+        # is_off è True se la modalità selezionata è OFF
+        is_off = (hvac_mode == HVACMode.OFF)
+        
+        # Usiamo l'attuale temperatura target per il comando
+        temp = self.target_temperature
+        
+        if await self._api.set_temperature(self._id, self._name, temp, is_off):
+            self._state_data["IsOFF"] = is_off
+            self.async_write_ha_state()
 
     async def async_update(self):
         """Aggiorna i dati della zona dal cloud."""
