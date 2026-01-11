@@ -1,0 +1,10 @@
+{
+  "domain": "proair_tecnosystemi",
+  "name": "ProAir Tecnosystemi",
+  "documentation": "https://github.com/michele/proair",
+  "dependencies": [],
+  "codeowners": ["@michele"],
+  "requirements": ["pycryptodome==3.19.0", "cryptography==46.0.2"],
+  "version": "1.0.0",
+  "config_flow": true
+}
