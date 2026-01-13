@@ -27,6 +27,16 @@
           "off": "Off"
         }
       }
+    },
+    "sensor": {
+      "proair_system_status": {
+        "name": "ProAir System Status",
+        "state": {
+          "system_off": "System Off",
+          "cooling": "Cooling",
+          "heating": "Heating"
+        }
+      }
     }
   }
 }

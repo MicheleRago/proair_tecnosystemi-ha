@@ -75,7 +75,7 @@ class ProAirSystemStatusSensor(CoordinatorEntity[ProAirDataUpdateCoordinator], S
     def __init__(self, coordinator: ProAirDataUpdateCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"proair_{coordinator.api.serial}_system_status"
-        self._attr_name = "ProAir System Status"
+        self._attr_translation_key = "proair_system_status"
         self._attr_icon = "mdi:hvac"
 
     @property

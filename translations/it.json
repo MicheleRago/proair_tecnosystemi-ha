@@ -26,6 +26,16 @@
                     "off": "Spento"
                 }
             }
+        },
+        "sensor": {
+            "proair_system_status": {
+                "name": "Stato Sistema ProAir",
+                "state": {
+                    "system_off": "Impianto Spento",
+                    "cooling": "Raffrescamento",
+                    "heating": "Riscaldamento"
+                }
+            }
         }
     }
 }
