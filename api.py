@@ -152,11 +152,16 @@ class ProAirAPI:
 
     async def get_state(self) -> dict[str, Any]:
         """Fetch system state."""
+        if not self.serial:
+            await self.login()
         url = f"{API_BASE_URL}/GetCUState?cuSerial={self.serial}&PIN={DEFAULT_PIN}"
         return await self._make_request("GET", url)
 
     async def set_temperature(self, zone_id: int, zone_name: str, temp: float, is_off: bool = False) -> bool:
         """Set temperature for a zone."""
+        if not self.serial:
+            await self.login()
+
         cmd = {
             "shu_set": 2, 
             "is_off": 1 if is_off else 0, 

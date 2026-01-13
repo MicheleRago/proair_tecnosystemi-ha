@@ -18,6 +18,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry.data[CONF_DEVICE_ID]
     )
     
+    # Eseguiamo il login per recuperare il serial number e validare credenziali
+    await api.login()
+    
     coordinator = ProAirDataUpdateCoordinator(hass, api)
     
     # Primo aggiornamento dati
