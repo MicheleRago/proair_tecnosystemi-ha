@@ -1,21 +1,31 @@
-
 {
-  "title": "ProAir Tecnosystemi",
   "config": {
     "step": {
       "user": {
-        "title": "Accedi a ProAir",
-        "description": "Inserisci le tue credenziali Tecnosystemi ProAir.",
         "data": {
-          "username": "Email",
-          "password": "Password (Hashed)",
+          "username": "Username (Email)",
+          "password": "Password",
           "device_id": "Device ID (UUID)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossibile contattare i server ProAir",
-      "invalid_auth": "Username o Password errati"
+      "cannot_connect": "Connessione fallita",
+      "invalid_auth": "Autenticazione non valida",
+      "unknown": "Errore sconosciuto"
+    },
+    "abort": {
+      "already_configured": "Il dispositivo è già configurato"
+    }
+  },
+  "entity": {
+    "climate": {
+      "proair_zone": {
+        "state": {
+          "heat": "Acceso",
+          "off": "Spento"
+        }
+      }
     }
   }
 }

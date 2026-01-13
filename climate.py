@@ -33,9 +33,12 @@ class ProAirZone(CoordinatorEntity[ProAirDataUpdateCoordinator], ClimateEntity):
         # Caratteristiche del termostato
         self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
         self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
+        self._attr_hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
+        self._attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
         self._attr_target_temperature_step = 0.5 # API dice int(temp * 10), ma UI HA preferisce 0.5 o 0.1
         self._attr_min_temp = 10.0
         self._attr_max_temp = 35.0
+        self._attr_translation_key = "proair_zone"
 
     @property
     def _zone_data(self) -> dict[str, Any]:

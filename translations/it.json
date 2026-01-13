@@ -1,0 +1,31 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "username": "Username (Email)",
+                    "password": "Password",
+                    "device_id": "Device ID (UUID)"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "Connessione fallita",
+            "invalid_auth": "Autenticazione non valida",
+            "unknown": "Errore sconosciuto"
+        },
+        "abort": {
+            "already_configured": "Il dispositivo è già configurato"
+        }
+    },
+    "entity": {
+        "climate": {
+            "proair_zone": {
+                "state": {
+                    "heat": "Acceso",
+                    "off": "Spento"
+                }
+            }
+        }
+    }
+}
