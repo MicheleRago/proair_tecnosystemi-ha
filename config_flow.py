@@ -1,5 +1,7 @@
 import voluptuous as vol
+from typing import Any
 from homeassistant import config_entries
+from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import aiohttp_client
 from .api import ProAirAPI
 from .const import DOMAIN, CONF_USERNAME, CONF_PASSWORD, CONF_DEVICE_ID
@@ -8,9 +10,9 @@ class ProAirConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Gestisce il flusso di configurazione ProAir."""
     VERSION = 1
 
-    async def async_step_user(self, user_input=None):
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
         """Primo step: inserimento credenziali."""
-        errors = {}
+        errors: dict[str, str] = {}
         
         if user_input is not None:
             session = aiohttp_client.async_get_clientsession(self.hass)

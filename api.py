@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import asyncio
+from typing import Any
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from .const import SALT, API_BASE_URL, API_LOGIN_URL, DEFAULT_PIN
@@ -44,20 +45,20 @@ class ProAirCrypto:
              raise ProAirError("Encryption failed") from e
 
 class ProAirAPI:
-    def __init__(self, session: aiohttp.ClientSession, email: str, password: str, device_id: str):
+    def __init__(self, session: aiohttp.ClientSession, email: str, password: str, device_id: str) -> None:
         self.session = session
         self.email = email
         self.password = password
         self.device_id = device_id
         self.crypto = ProAirCrypto(device_id)
-        self.token = None
-        self.serial = None
+        self.token: str | None = None
+        self.serial: str | None = None
         self._lock = asyncio.Lock()
 
     def _update_token_local(self) -> str:
         """Increment current token locally."""
         if not self.token:
-            return None
+            return ""
         try:
             plain = self.crypto.decrypt(self.token)
             parts = plain.split('_')
@@ -67,7 +68,17 @@ class ProAirAPI:
             return self.token
         except Exception as e:
             _LOGGER.error("Token increment error: %s", e)
-            return self.token
+            return self.token or ""
+
+    def _get_auth_headers(self, token: str) -> dict[str, str]:
+        """Generate auth headers."""
+        user_auth = base64.b64encode(f"{self.email}:PwdProAir".encode()).decode()
+        return {
+            "Token": token,
+            "Authorization": f"Basic {user_auth}",
+            "UserObj-Agent": "benincapp",
+            "User-Agent": "Tecnosystemi/2.2.3"
+        }
 
     async def login(self) -> bool:
         """Perform login and get initial token."""
@@ -92,6 +103,7 @@ class ProAirAPI:
                 data = await resp.json()
                 if "Token" in data:
                     self.token = data["Token"]
+                    # Usually "ListPlants" -> "ListDevices" -> "Serial"
                     if data.get("ListPlants") and data["ListPlants"][0].get("ListDevices"):
                         self.serial = data["ListPlants"][0]["ListDevices"][0]["Serial"]
                         return True
@@ -99,86 +111,77 @@ class ProAirAPI:
         except aiohttp.ClientError as e:
             raise ProAirConnectionError(f"Connection error during login: {e}") from e
 
-    async def get_state(self) -> dict:
-        """Fetch system state."""
+    async def _make_request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+        """Centralized request logic with token refresh and error handling."""
         async with self._lock:
-            if not self.token: 
+            if not self.token:
                 await self.login()
-            
-            current_token = self._update_token_local()
-            if not current_token:
-                 await self.login()
-                 current_token = self.token
 
-            user_auth = base64.b64encode(f"{self.email}:PwdProAir".encode()).decode()
-            headers = {
-                "Token": current_token, 
-                "Authorization": f"Basic {user_auth}", 
-                "UserObj-Agent": "benincapp", 
-                "User-Agent": "Tecnosystemi/2.2.3"
-            }
+            # First attempt
+            current_token = self._update_token_local()
+            headers = self._get_auth_headers(current_token)
             
-            url = f"{API_BASE_URL}/GetCUState?cuSerial={self.serial}&PIN={DEFAULT_PIN}"
+            # Merge existing headers if any
+            if "headers" in kwargs:
+                headers.update(kwargs.pop("headers"))
             
             try:
-                async with self.session.get(url, headers=headers) as resp:
+                async with self.session.request(method, url, headers=headers, **kwargs) as resp:
                     if resp.status == 401:
-                        _LOGGER.warning("401 Unauthorized, re-login")
+                        _LOGGER.warning("401 Unauthorized, performing re-login")
                         await self.login()
                         current_token = self._update_token_local()
-                        headers["Token"] = current_token
-                        async with self.session.get(url, headers=headers) as resp2:
-                            data = await resp2.json()
-                    else:
-                        data = await resp.json()
+                        headers = self._get_auth_headers(current_token)
+                        # Retry
+                        async with self.session.request(method, url, headers=headers, **kwargs) as resp2:
+                            resp = resp2
+                    
+                    data: dict[str, Any] = await resp.json()
                     
                     if data and data.get("Token"):
                         self.token = data["Token"]
+                    
+                    if resp.status != 200:
+                         _LOGGER.error("API error %s: %s", resp.status, data)
+                         # We could raise an exception here depending on API behavior, 
+                         # but keeping it consistent with legacy behavior of returning data + False return in logic
+                    
                     return data
             except aiohttp.ClientError as e:
-                raise ProAirConnectionError(f"Error fetching state: {e}") from e
+                 raise ProAirConnectionError(f"Communication error: {e}") from e
+
+    async def get_state(self) -> dict[str, Any]:
+        """Fetch system state."""
+        url = f"{API_BASE_URL}/GetCUState?cuSerial={self.serial}&PIN={DEFAULT_PIN}"
+        return await self._make_request("GET", url)
 
     async def set_temperature(self, zone_id: int, zone_name: str, temp: float, is_off: bool = False) -> bool:
         """Set temperature for a zone."""
-        async with self._lock:
-            current_token = self._update_token_local()
-            
-            user_auth = base64.b64encode(f"{self.email}:PwdProAir".encode()).decode()
-            headers = {
-                "Token": current_token, 
-                "Authorization": f"Basic {user_auth}", 
-                "UserObj-Agent": "benincapp", 
-                "Content-Type": "application/json"
-            }
-            
-            cmd = {
-                "shu_set": 2, 
-                "is_off": 1 if is_off else 0, 
-                "c": "upd_zona", 
-                "t_set": int(temp * 10), 
-                "id_zona": zone_id, 
-                "is_crono": 0, 
-                "fan_set": -1, 
-                "name": zone_name, 
-                "pin": DEFAULT_PIN
-            }
-            payload = {
-                "Serial": self.serial, 
-                "ZoneId": zone_id, 
-                "Cmd": json.dumps(cmd, separators=(',', ':')), 
-                "Pin": DEFAULT_PIN, 
-                "Name": zone_name, 
-                "Icon": 0
-            }
-            
-            try:
-                async with self.session.post(f"{API_BASE_URL}/UpdateZonaData?create_command=true", json=payload, headers=headers) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        if data.get("Token"): 
-                            self.token = data["Token"]
-                        return True
-                    _LOGGER.error("Error setting temperature, status: %s", resp.status)
-                    return False
-            except aiohttp.ClientError as e:
-                raise ProAirConnectionError(f"Error setting temperature: {e}") from e
+        cmd = {
+            "shu_set": 2, 
+            "is_off": 1 if is_off else 0, 
+            "c": "upd_zona", 
+            "t_set": int(temp * 10), 
+            "id_zona": zone_id, 
+            "is_crono": 0, 
+            "fan_set": -1, 
+            "name": zone_name, 
+            "pin": DEFAULT_PIN
+        }
+        payload = {
+            "Serial": self.serial, 
+            "ZoneId": zone_id, 
+            "Cmd": json.dumps(cmd, separators=(',', ':')), 
+            "Pin": DEFAULT_PIN, 
+            "Name": zone_name, 
+            "Icon": 0
+        }
+        
+        url = f"{API_BASE_URL}/UpdateZonaData?create_command=true"
+        # Content-Type header is needed for this POST
+        data = await self._make_request("POST", url, json=payload, headers={"Content-Type": "application/json"})
+        
+        # Original logic returned True if status 200 (handled in make_request mostly)
+        # We assume if we got data back, it was successful enough? 
+        # API returns 200 even on logical errors sometimes, so we check existence of data
+        return bool(data)

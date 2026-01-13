@@ -1,14 +1,19 @@
 import logging
+from typing import Any
 from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate.const import HVACMode, ClimateEntityFeature
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from .coordinator import ProAirDataUpdateCoordinator
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
     """Set up the ProAir climate platform from a config entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: ProAirDataUpdateCoordinator = hass.data[DOMAIN][entry.entry_id]
     
     # Non chiamiamo più api.get_state() qui, usiamo i dati del coordinator
     if coordinator.data and "Zones" in coordinator.data:
@@ -17,8 +22,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     else:
         _LOGGER.error("Nessuna zona rilevata o dati non disponibili")
 
-class ProAirZone(CoordinatorEntity, ClimateEntity):
-    def __init__(self, coordinator, zone_data):
+class ProAirZone(CoordinatorEntity[ProAirDataUpdateCoordinator], ClimateEntity):
+    def __init__(self, coordinator: ProAirDataUpdateCoordinator, zone_data: dict[str, Any]) -> None:
         super().__init__(coordinator)
         self._api = coordinator.api
         self._id = zone_data["ZoneId"]
@@ -33,7 +38,7 @@ class ProAirZone(CoordinatorEntity, ClimateEntity):
         self._attr_max_temp = 35.0
 
     @property
-    def _zone_data(self):
+    def _zone_data(self) -> dict[str, Any]:
         """Ottiene i dati aggiornati per questa zona dal coordinator."""
         for zone in self.coordinator.data.get("Zones", []):
             if zone["ZoneId"] == self._id:
@@ -41,41 +46,47 @@ class ProAirZone(CoordinatorEntity, ClimateEntity):
         return {}
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def temperature_unit(self):
+    def temperature_unit(self) -> str:
         return "°C"
 
     @property
-    def hvac_mode(self):
+    def hvac_mode(self) -> HVACMode:
         # IsOFF nel JSON è booleano
         return HVACMode.OFF if self._zone_data.get("IsOFF") is True else HVACMode.HEAT
 
     @property
-    def current_temperature(self):
-        return float(self._zone_data.get("Temp", 0)) / 10
+    def current_temperature(self) -> float | None:
+        val = self._zone_data.get("Temp")
+        if val is not None:
+             return float(val) / 10
+        return None
 
     @property
-    def target_temperature(self):
-        return float(self._zone_data.get("SetTemp", 0)) / 10
+    def target_temperature(self) -> float | None:
+        val = self._zone_data.get("SetTemp")
+        if val is not None:
+            return float(val) / 10
+        return None
 
     @property
-    def current_humidity(self):
+    def current_humidity(self) -> float | None:
         val = self._zone_data.get("Umd")
         if val is not None:
             return float(val) / 10
         return None
 
     @property
-    def extra_state_attributes(self):
+    def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
         return {
             "last_update": self.coordinator.data.get("last_update")
         }
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs: Any) -> None:
         """Imposta una nuova temperatura target."""
         temp = kwargs.get("temperature")
         if temp is None:
@@ -87,12 +98,12 @@ class ProAirZone(CoordinatorEntity, ClimateEntity):
             # Richiediamo un aggiornamento immediato dopo il comando
             await self.coordinator.async_request_refresh()
     
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Accende o spegne la zona."""
         _LOGGER.debug("Impostazione modalità HVAC per %s: %s", self._name, hvac_mode)
         
         is_off = (hvac_mode == HVACMode.OFF)
         temp = self.target_temperature
         
-        if await self._api.set_temperature(self._id, self._name, temp, is_off):
+        if temp is not None and await self._api.set_temperature(self._id, self._name, temp, is_off):
              await self.coordinator.async_request_refresh()

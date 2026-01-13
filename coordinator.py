@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from typing import Any
 import async_timeout
 
 from homeassistant.core import HomeAssistant
@@ -7,17 +8,17 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
-from homeassistant.exceptions import ConfigEntryAuthFailed # Import this!
+from homeassistant.exceptions import ConfigEntryAuthFailed 
 
 from .api import ProAirAPI, ProAirAuthError, ProAirConnectionError
 from .const import DOMAIN, UPDATE_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
-class ProAirDataUpdateCoordinator(DataUpdateCoordinator):
+class ProAirDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Class to manage fetching ProAir data."""
 
-    def __init__(self, hass: HomeAssistant, api: ProAirAPI):
+    def __init__(self, hass: HomeAssistant, api: ProAirAPI) -> None:
         """Initialize."""
         super().__init__(
             hass,
@@ -27,7 +28,7 @@ class ProAirDataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.api = api
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from API endpoint."""
         try:
             # Note: asyncio.timeout is preferred over async_timeout in newer HA versions, 
