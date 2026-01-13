@@ -82,10 +82,10 @@ class ProAirSystemStatusSensor(CoordinatorEntity[ProAirDataUpdateCoordinator], S
     def native_value(self) -> str:
         """Return the system status."""
         if self.coordinator.data.get("IsOFF"):
-            return "System Off"
+            return "system_off"
         if self.coordinator.data.get("IsCooling"):
-            return "Cooling"
-        return "Heating"
+            return "cooling"
+        return "heating"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
