@@ -31,13 +31,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data[DOMAIN][entry.entry_id] = coordinator
     
     # Start climate and sensor platforms
-    await hass.config_entries.async_forward_entry_setups(entry, ["climate", "sensor"])
+    await hass.config_entries.async_forward_entry_setups(entry, ["climate", "sensor", "binary_sensor"])
     
     return True
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Remove the integration and clean up."""
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["climate", "sensor"])
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, ["climate", "sensor", "binary_sensor"])
     if unload_ok:
         hass.data[DOMAIN].pop(entry.entry_id)
     return unload_ok
