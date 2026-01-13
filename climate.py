@@ -17,10 +17,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     
     # Non chiamiamo più api.get_state() qui, usiamo i dati del coordinator
     if coordinator.data and "Zones" in coordinator.data:
-        _LOGGER.info("Rilevate %s zone ProAir", len(coordinator.data["Zones"]))
+        _LOGGER.info("Detected %s ProAir zones", len(coordinator.data["Zones"]))
         async_add_entities([ProAirZone(coordinator, zone) for zone in coordinator.data["Zones"]], True)
     else:
-        _LOGGER.error("Nessuna zona rilevata o dati non disponibili")
+        _LOGGER.error("No zones detected or data unavailable")
 
 class ProAirZone(CoordinatorEntity[ProAirDataUpdateCoordinator], ClimateEntity):
     def __init__(self, coordinator: ProAirDataUpdateCoordinator, zone_data: dict[str, Any]) -> None:
@@ -95,15 +95,15 @@ class ProAirZone(CoordinatorEntity[ProAirDataUpdateCoordinator], ClimateEntity):
         if temp is None:
             return
             
-        _LOGGER.debug("Invio comando temperatura per %s: %s gradi", self._name, temp)
+        _LOGGER.debug("Sending temperature command for %s: %s degrees", self._name, temp)
         
         if await self._api.set_temperature(self._id, self._name, temp):
-            # Richiediamo un aggiornamento immediato dopo il comando
+            # Request immediate update after command
             await self.coordinator.async_request_refresh()
     
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Accende o spegne la zona."""
-        _LOGGER.debug("Impostazione modalità HVAC per %s: %s", self._name, hvac_mode)
+        _LOGGER.debug("Setting HVAC mode for %s: %s", self._name, hvac_mode)
         
         is_off = (hvac_mode == HVACMode.OFF)
         temp = self.target_temperature

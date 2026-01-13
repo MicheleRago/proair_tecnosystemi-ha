@@ -7,11 +7,11 @@ from .api import ProAirAPI
 from .const import DOMAIN, CONF_USERNAME, CONF_PASSWORD, CONF_DEVICE_ID
 
 class ProAirConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Gestisce il flusso di configurazione ProAir."""
+    """Handle ProAir configuration flow."""
     VERSION = 1
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
-        """Primo step: inserimento credenziali."""
+        """First step: credentials input."""
         errors: dict[str, str] = {}
         
         if user_input is not None:
@@ -23,7 +23,7 @@ class ProAirConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 user_input[CONF_DEVICE_ID]
             )
             try:
-                # Validazione credenziali
+                # Credentials validation
                 if await api.login():
                     return self.async_create_entry(
                         title=user_input[CONF_USERNAME], 
@@ -33,7 +33,7 @@ class ProAirConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             except Exception:
                 errors["base"] = "cannot_connect"
 
-        # Schema dei campi richiesti nel popup
+        # Schema for form fields
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({

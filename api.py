@@ -146,6 +146,7 @@ class ProAirAPI:
                          # We could raise an exception here depending on API behavior, 
                          # but keeping it consistent with legacy behavior of returning data + False return in logic
                     
+                    _LOGGER.debug("API Response for %s: %s", url, data)
                     return data
             except aiohttp.ClientError as e:
                  raise ProAirConnectionError(f"Communication error: {e}") from e
