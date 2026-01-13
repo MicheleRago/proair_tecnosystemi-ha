@@ -53,3 +53,10 @@ class ProAirHumiditySensor(CoordinatorEntity, SensorEntity):
         if val is not None:
             return float(val) / 10
         return None
+
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "last_update": self.coordinator.data.get("last_update")
+        }

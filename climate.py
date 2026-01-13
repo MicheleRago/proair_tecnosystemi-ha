@@ -68,6 +68,13 @@ class ProAirZone(CoordinatorEntity, ClimateEntity):
             return float(val) / 10
         return None
 
+    @property
+    def extra_state_attributes(self):
+        """Return the state attributes."""
+        return {
+            "last_update": self.coordinator.data.get("last_update")
+        }
+
     async def async_set_temperature(self, **kwargs):
         """Imposta una nuova temperatura target."""
         temp = kwargs.get("temperature")

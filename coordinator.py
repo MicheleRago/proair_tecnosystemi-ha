@@ -34,7 +34,11 @@ class ProAirDataUpdateCoordinator(DataUpdateCoordinator):
             # but async_timeout is safer for compatibility if we don't know the strictly required version.
             # However standard practice is keeping it simple.
             async with async_timeout.timeout(30):
-                return await self.api.get_state()
+                data = await self.api.get_state()
+                if data:
+                    from datetime import datetime
+                    data["last_update"] = datetime.now().isoformat()
+                return data
         except ProAirAuthError as err:
             raise ConfigEntryAuthFailed from err
         except ProAirConnectionError as err:
