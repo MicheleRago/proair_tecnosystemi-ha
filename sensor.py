@@ -91,7 +91,7 @@ class ProAirSystemStatusSensor(CoordinatorEntity[ProAirDataUpdateCoordinator], S
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return detailed system attributes."""
         data = self.coordinator.data
-        return {
+        attrs = {
             "serial_number": data.get("Serial"),
             "firmware_version": data.get("FWVer"),
             "errors": data.get("Errors"),
@@ -100,3 +100,12 @@ class ProAirSystemStatusSensor(CoordinatorEntity[ProAirDataUpdateCoordinator], S
             "operating_mode": data.get("OperatingModeCooling"),
             "last_update": data.get("last_update")
         }
+        
+        # Add channel temperature if available
+        if data.get("TempCan") is not None:
+             try:
+                 attrs["channel_temperature"] = float(data["TempCan"]) / 10.0
+             except (ValueError, TypeError):
+                 attrs["channel_temperature"] = None
+                 
+        return attrs
