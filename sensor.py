@@ -26,12 +26,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             if zone.get("Umd") is not None:
                 sensors.append(ProAirHumiditySensor(coordinator, zone))
         
-        # Add System Sensors
-        sensors.extend([
-            ProAirSystemSensor(coordinator, "FWVer", "Firmware Version", None),
-            ProAirSystemSensor(coordinator, "Serial", "Serial Number", None),
-            ProAirSystemSensor(coordinator, "OperatingModeCooling", "Operating Mode", None), 
-        ])
+        # Add System Status Sensor
+        sensors.append(ProAirSystemStatusSensor(coordinator))
 
         if sensors:
             async_add_entities(sensors, True)
@@ -73,34 +69,34 @@ class ProAirHumiditySensor(CoordinatorEntity[ProAirDataUpdateCoordinator], Senso
             "last_update": self.coordinator.data.get("last_update")
         }
 
-class ProAirSystemSensor(CoordinatorEntity[ProAirDataUpdateCoordinator], SensorEntity):
-    """Representation of a ProAir System Sensor."""
+class ProAirSystemStatusSensor(CoordinatorEntity[ProAirDataUpdateCoordinator], SensorEntity):
+    """Unified ProAir System Status Sensor."""
 
-    def __init__(
-        self, 
-        coordinator: ProAirDataUpdateCoordinator, 
-        key: str, 
-        name: str, 
-        device_class: SensorDeviceClass | None = None
-    ) -> None:
+    def __init__(self, coordinator: ProAirDataUpdateCoordinator) -> None:
         super().__init__(coordinator)
-        self._key = key
-        self._name_suffix = name
-        self._attr_device_class = device_class
-        self._attr_unique_id = f"proair_{coordinator.api.serial}_{key.lower()}"
-        self._attr_name = f"ProAir {name}"
+        self._attr_unique_id = f"proair_{coordinator.api.serial}_system_status"
+        self._attr_name = "ProAir System Status"
+        self._attr_icon = "mdi:hvac"
 
     @property
-    def native_value(self) -> str | None:
-        """Return the state of the sensor."""
-        val = self.coordinator.data.get(self._key)
-        if val is not None:
-            return str(val)
-        return None
+    def native_value(self) -> str:
+        """Return the system status."""
+        if self.coordinator.data.get("IsOFF"):
+            return "System Off"
+        if self.coordinator.data.get("IsCooling"):
+            return "Cooling"
+        return "Heating"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return the state attributes."""
+        """Return detailed system attributes."""
+        data = self.coordinator.data
         return {
-            "last_update": self.coordinator.data.get("last_update")
+            "serial_number": data.get("Serial"),
+            "firmware_version": data.get("FWVer"),
+            "errors": data.get("Errors"),
+            "system_off": data.get("IsOFF"),
+            "is_cooling": data.get("IsCooling"),
+            "operating_mode": data.get("OperatingModeCooling"),
+            "last_update": data.get("last_update")
         }
