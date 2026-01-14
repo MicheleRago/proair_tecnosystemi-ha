@@ -117,39 +117,53 @@ class ProAirAPI:
             if not self.token:
                 await self.login()
 
-            # First attempt
-            current_token = self._update_token_local()
-            headers = self._get_auth_headers(current_token)
+            # Extract headers once to avoid popping in loop
+            active_kwargs = kwargs.copy()
+            passed_headers = active_kwargs.pop("headers", None)
+
+            # Retry loop for connection errors
+            for attempt in range(3):
+                current_token = self._update_token_local()
+                headers = self._get_auth_headers(current_token)
+                
+                if passed_headers:
+                    headers.update(passed_headers)
+                
+                try:
+                    async with self.session.request(method, url, headers=headers, **active_kwargs) as resp:
+                        if resp.status == 401:
+                            _LOGGER.debug("401 Unauthorized, performing re-login")
+                            await self.login()
+                            current_token = self._update_token_local()
+                            headers = self._get_auth_headers(current_token)
+                            if passed_headers:
+                                headers.update(passed_headers)
+                                
+                            # Retry immediately with new token
+                            async with self.session.request(method, url, headers=headers, **active_kwargs) as resp2:
+                                resp = resp2
+                        
+                        data: dict[str, Any] = await resp.json()
+                        
+                        if data and data.get("Token"):
+                            self.token = data["Token"]
+                        
+                        if resp.status != 200:
+                             _LOGGER.error("API error %s: %s", resp.status, data)
+                             # We could raise an exception here depending on API behavior, 
+                             # but keeping it consistent with legacy behavior of returning data + False return in logic
+                        
+                        _LOGGER.debug("API Response for %s: %s", url, data)
+                        return data
+
+                except aiohttp.ClientError as e:
+                    if attempt < 2:
+                         _LOGGER.debug("Connection error (attempt %d/3): %s. Retrying...", attempt + 1, e)
+                         await asyncio.sleep(1)
+                    else:
+                         raise ProAirConnectionError(f"Communication error: {e}") from e
             
-            # Merge existing headers if any
-            if "headers" in kwargs:
-                headers.update(kwargs.pop("headers"))
-            
-            try:
-                async with self.session.request(method, url, headers=headers, **kwargs) as resp:
-                    if resp.status == 401:
-                        _LOGGER.warning("401 Unauthorized, performing re-login")
-                        await self.login()
-                        current_token = self._update_token_local()
-                        headers = self._get_auth_headers(current_token)
-                        # Retry
-                        async with self.session.request(method, url, headers=headers, **kwargs) as resp2:
-                            resp = resp2
-                    
-                    data: dict[str, Any] = await resp.json()
-                    
-                    if data and data.get("Token"):
-                        self.token = data["Token"]
-                    
-                    if resp.status != 200:
-                         _LOGGER.error("API error %s: %s", resp.status, data)
-                         # We could raise an exception here depending on API behavior, 
-                         # but keeping it consistent with legacy behavior of returning data + False return in logic
-                    
-                    _LOGGER.debug("API Response for %s: %s", url, data)
-                    return data
-            except aiohttp.ClientError as e:
-                 raise ProAirConnectionError(f"Communication error: {e}") from e
+            raise ProAirConnectionError("Unknown error after retries")
 
     async def get_state(self) -> dict[str, Any]:
         """Fetch system state."""
